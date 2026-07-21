@@ -987,7 +987,7 @@ function renderHomeList(items) {
     .forEach((t) => {
       const row = document.createElement("div");
       row.className = `card imp-${t.importancia}${t.done ? " task-done" : ""}`;
-      row.style.cssText = "margin-bottom:8px;min-height:auto;display:flex;align-items:center;gap:10px;";
+      row.style.cssText = "margin-bottom:8px;min-height:auto;display:flex;flex-direction:row;align-items:center;gap:10px;padding:10px 12px;";
 
       const textCol = document.createElement("div");
       textCol.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;";

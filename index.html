@@ -143,7 +143,16 @@
   .home-time { font-size: 64px; letter-spacing: -0.03em; }
   .home-date { font-size: 15px; margin-top: 4px; }
   .home-temp { font-size: 18px; margin-top: 8px; }
-  #home-calendar { padding: 12px 16px; margin: 0 0 14px; border: 2px solid #000; border-radius: 8px; }
+  #home-calendar { padding: 12px 16px; margin: 0 0 14px; border: 2px solid #000; border-radius: 8px; position: relative; }
+  .home-cal-label-btn { background: none; border: none; font-size: 15px; font-weight: 700; text-transform: capitalize; cursor: pointer; color: #000; display: flex; align-items: center; gap: 4px; padding: 0; }
+  .home-cal-label-btn .arrow { font-size: 10px; transition: transform 0.15s; }
+  .home-cal-label-btn.open .arrow { transform: rotate(180deg); }
+  .month-picker { position: absolute; top: 44px; left: 12px; right: 12px; background: #fff; border: 2px solid #000; border-radius: 8px; padding: 12px; z-index: 10; }
+  .month-picker-year { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .month-picker-year span { font-size: 14px; font-weight: 700; }
+  .month-picker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .month-picker-btn { padding: 8px 4px; border: 2px solid #000; border-radius: 4px; font-size: 13px; font-weight: 600; background: #fff; color: #000; cursor: pointer; }
+  .month-picker-btn.active { background: #000; color: #fff; }
   #home-calendar .cal-header { margin-bottom: 8px; }
   #home-calendar .cal-month { font-size: 15px; }
   #home-calendar .cal-grid { gap: 3px; }
@@ -231,6 +240,8 @@ let sortTarefas = "recentes";
 let selectedHomeKey = null;
 let homeCalYear = new Date().getFullYear();
 let homeCalMonth = new Date().getMonth();
+let homePickerOpen = false;
+let homePickerYear = new Date().getFullYear();
 
 let draft = null;
 
@@ -681,7 +692,7 @@ function monthLabel(year, month) {
   return `${name}/${String(year).slice(-2)}`;
 }
 
-function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick, selectedKey }) {
+function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick, selectedKey, onMonthLabelClick }) {
   const wrap = document.createElement("div");
   wrap.className = "cal";
 
@@ -694,10 +705,18 @@ function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick, 
     prev.onclick = (e) => { e.stopPropagation(); onNavigate(-1); };
     header.appendChild(prev);
   }
-  const label = document.createElement("div");
-  label.className = "cal-month";
-  label.textContent = monthLabel(year, month);
-  header.appendChild(label);
+  if (onMonthLabelClick) {
+    const labelBtn = document.createElement("button");
+    labelBtn.className = "home-cal-label-btn" + (homePickerOpen ? " open" : "");
+    labelBtn.innerHTML = `<span>${monthLabel(year, month)}</span><span class="arrow">▾</span>`;
+    labelBtn.onclick = (e) => { e.stopPropagation(); onMonthLabelClick(); };
+    header.appendChild(labelBtn);
+  } else {
+    const label = document.createElement("div");
+    label.className = "cal-month";
+    label.textContent = monthLabel(year, month);
+    header.appendChild(label);
+  }
   if (interactive) {
     const next = document.createElement("button");
     next.className = "cal-nav";
@@ -743,6 +762,46 @@ function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick, 
   return wrap;
 }
 
+function buildMonthPicker() {
+  const picker = document.createElement("div");
+  picker.className = "month-picker";
+
+  const yearRow = document.createElement("div");
+  yearRow.className = "month-picker-year";
+  const prevY = document.createElement("button");
+  prevY.className = "cal-nav";
+  prevY.textContent = "‹";
+  prevY.onclick = (e) => { e.stopPropagation(); homePickerYear--; renderCalendar(); };
+  const yearLabel = document.createElement("span");
+  yearLabel.textContent = homePickerYear;
+  const nextY = document.createElement("button");
+  nextY.className = "cal-nav";
+  nextY.textContent = "›";
+  nextY.onclick = (e) => { e.stopPropagation(); homePickerYear++; renderCalendar(); };
+  yearRow.appendChild(prevY);
+  yearRow.appendChild(yearLabel);
+  yearRow.appendChild(nextY);
+  picker.appendChild(yearRow);
+
+  const grid = document.createElement("div");
+  grid.className = "month-picker-grid";
+  ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"].forEach((m, i) => {
+    const btn = document.createElement("button");
+    btn.className = "month-picker-btn" + (i === homeCalMonth && homePickerYear === homeCalYear ? " active" : "");
+    btn.textContent = m;
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      homeCalMonth = i;
+      homeCalYear = homePickerYear;
+      homePickerOpen = false;
+      renderCalendar();
+    };
+    grid.appendChild(btn);
+  });
+  picker.appendChild(grid);
+  return picker;
+}
+
 function renderCalendar() {
   if (!selectedHomeKey) selectedHomeKey = todayKey();
   const el = document.getElementById("home-calendar");
@@ -750,21 +809,22 @@ function renderCalendar() {
   const block = buildCalendarBlock({
     year: homeCalYear,
     month: homeCalMonth,
-    interactive: true,
+    interactive: false,
     selectedKey: selectedHomeKey,
-    onNavigate: (dir) => {
-      homeCalMonth += dir;
-      if (homeCalMonth < 0) { homeCalMonth = 11; homeCalYear--; }
-      if (homeCalMonth > 11) { homeCalMonth = 0; homeCalYear++; }
+    onMonthLabelClick: () => {
+      homePickerOpen = !homePickerOpen;
+      homePickerYear = homeCalYear;
       renderCalendar();
     },
     onDayClick: (key, items) => {
       selectedHomeKey = key;
+      homePickerOpen = false;
       renderCalendar();
       renderHomeList(items);
     },
   });
   el.appendChild(block);
+  if (homePickerOpen) el.appendChild(buildMonthPicker());
 }
 
 function openCalendarPopup() {

@@ -653,14 +653,15 @@ function renderFilter(containerId, current, onChange) {
 function renderGrid(containerId, list, kind) {
   const el = document.getElementById(containerId);
   el.innerHTML = "";
-  if (list.length === 0) {
+  const visible = list.filter((item) => !item.done);
+  if (visible.length === 0) {
     const p = document.createElement("p");
     p.className = "empty-note";
     p.textContent = kind === "nota" ? "nenhuma anotação ainda — capture algo na seção inicial." : "nenhuma tarefa ainda — capture algo na seção inicial.";
     el.appendChild(p);
     return;
   }
-  list.forEach((item) => {
+  visible.forEach((item) => {
     const card = document.createElement("div");
     card.className = `card imp-${item.importancia}`;
     const date = document.createElement("div");
@@ -669,8 +670,22 @@ function renderGrid(containerId, list, kind) {
     const title = document.createElement("div");
     title.className = "title";
     title.textContent = item.titulo.length > 60 ? item.titulo.slice(0, 60) + "…" : item.titulo;
+
+    const checkBtn = document.createElement("button");
+    checkBtn.className = "check-btn" + (item.done ? " done" : "");
+    checkBtn.textContent = item.done ? "✓" : "";
+    checkBtn.style.cssText = "margin-top:6px;align-self:flex-end;";
+    checkBtn.onclick = (e) => {
+      e.stopPropagation();
+      item.done = !item.done;
+      renderGrids();
+      renderHome();
+      renderCalendar();
+    };
+
     card.appendChild(date);
     card.appendChild(title);
+    card.appendChild(checkBtn);
     card.onclick = () => openPopup(item, kind);
     el.appendChild(card);
   });
@@ -1018,6 +1033,7 @@ function renderHomeList(items) {
         t.done = !t.done;
         renderHomeList(items);
         renderCalendar();
+        renderGrids();
       };
 
       row.appendChild(textCol);

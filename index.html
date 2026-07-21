@@ -116,6 +116,7 @@
     font-size: 12px; border-radius: 6px; border: 1px solid transparent; background: none; position: relative;
   }
   .cal-day.today { border: 2px solid #000; font-weight: 700; }
+  .cal-day.selected { background: #000; color: #fff; border-color: transparent; }
   .cal-day.empty { visibility: hidden; }
   .cal-day .cal-dots { display: flex; gap: 2px; margin-top: 2px; }
   .cal-day .cal-priority-dot { width: 4px; height: 4px; border-radius: 50%; }
@@ -226,6 +227,7 @@ let idSeq = 300;
 
 let sortNotas = "recentes";
 let sortTarefas = "recentes";
+let selectedHomeKey = null;
 
 let draft = null;
 
@@ -726,11 +728,12 @@ function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick }
     const key = dateKey(year, month, d);
     const items = byDate[key] || [];
     const priorities = ["alta", "media", "baixa"].filter((p) => items.some((t) => t.importancia === p));
-    const cell = document.createElement(interactive ? "button" : "div");
-    cell.className = "cal-day" + (key === tKey ? " today" : "");
+    const clickable = interactive || !!onDayClick;
+    const cell = document.createElement(clickable ? "button" : "div");
+    cell.className = "cal-day" + (key === tKey ? " today" : "") + (selectedKey && key === selectedKey ? " selected" : "");
     const dotsHtml = priorities.map((p) => `<span class="cal-priority-dot ${p}"></span>`).join("");
     cell.innerHTML = `<span>${d}</span><span class="cal-dots">${dotsHtml}</span>`;
-    if (interactive) cell.onclick = (e) => { e.stopPropagation(); onDayClick(key, items); };
+    if (clickable) cell.onclick = (e) => { e.stopPropagation(); onDayClick(key, items); };
     grid.appendChild(cell);
   }
   wrap.appendChild(grid);
@@ -738,10 +741,21 @@ function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick }
 }
 
 function renderCalendar() {
+  if (!selectedHomeKey) selectedHomeKey = todayKey();
   const el = document.getElementById("home-calendar");
   el.innerHTML = "";
   const now = new Date();
-  const block = buildCalendarBlock({ year: now.getFullYear(), month: now.getMonth(), interactive: false });
+  const block = buildCalendarBlock({
+    year: now.getFullYear(),
+    month: now.getMonth(),
+    interactive: false,
+    selectedKey: selectedHomeKey,
+    onDayClick: (key, items) => {
+      selectedHomeKey = key;
+      renderCalendar();
+      renderHomeList(items);
+    },
+  });
   el.appendChild(block);
 }
 
@@ -833,26 +847,34 @@ function openDayPopup(key, items) {
   root.appendChild(backdrop);
 }
 
-function renderHome() {
+function renderHomeList(items) {
   const el = document.getElementById("home-list");
   el.innerHTML = "";
-  const hoje = tarefas.filter((t) => t.data === "hoje").sort((a, b) => a.horario.localeCompare(b.horario));
-  if (hoje.length === 0) {
+  if (!items || items.length === 0) {
     const p = document.createElement("p");
     p.className = "empty-note";
-    p.textContent = "nada marcado pra hoje.";
+    p.textContent = "nada marcado nesse dia.";
     el.appendChild(p);
     return;
   }
-  hoje.forEach((t) => {
-    const row = document.createElement("div");
-    row.className = `card imp-${t.importancia}`;
-    row.style.marginBottom = "8px";
-    row.style.minHeight = "auto";
-    row.innerHTML = `<div class="date">${t.horario || "sem horário"}</div><div class="title">${t.titulo}</div>`;
-    row.onclick = () => openPopup(t, "tarefa");
-    el.appendChild(row);
-  });
+  items
+    .slice()
+    .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""))
+    .forEach((t) => {
+      const row = document.createElement("div");
+      row.className = `card imp-${t.importancia}`;
+      row.style.marginBottom = "8px";
+      row.style.minHeight = "auto";
+      row.innerHTML = `<div class="date">${t.horario || "sem horário"}</div><div class="title">${t.titulo}</div>`;
+      row.onclick = () => openPopup(t, "tarefa");
+      el.appendChild(row);
+    });
+}
+
+function renderHome() {
+  if (!selectedHomeKey) selectedHomeKey = todayKey();
+  const byDate = tasksByDate();
+  renderHomeList(byDate[selectedHomeKey] || []);
 }
 
 const MOCK_TEMP = "23°";

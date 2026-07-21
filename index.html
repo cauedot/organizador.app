@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Protótipo — Meu Organizador</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #e2e2e2; color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .phone-frame {
+    width: 375px; height: 812px;
+    max-width: 92vw; max-height: 92vh;
+    background: #fff;
+    border: 10px solid #000;
+    border-radius: 48px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+  }
+  .notch {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 34%; height: 24px; background: #000; border-radius: 14px; z-index: 30;
+  }
+  .viewport { width: 100%; height: 100%; overflow: hidden; position: relative; }
+  .track { display: flex; height: 100%; will-change: transform; }
+  .track.animating { transition: transform 0.28s ease; }
+  .panel {
+    width: 100%; height: 100%; flex-shrink: 0;
+    display: flex; flex-direction: column;
+    padding: 46px 20px 24px; overflow-y: auto;
+  }
+
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+  h1.big-title { font-size: 34px; text-align: center; margin: 4px 0 18px; }
+  .sub { font-size: 12px; color: #666; margin: 0 0 20px; }
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+
+  button { font-family: inherit; cursor: pointer; }
+
+  .mic-btn {
+    width: 90px; height: 90px; border-radius: 50%;
+    border: 2px solid #000; background: #fff; color: #000;
+    font-size: 13px; font-weight: 600;
+  }
+  .mic-btn.recording { background: #000; color: #fff; }
+
+  .live-text {
+    font-size: 22px; line-height: 1.4; font-weight: 500;
+    min-height: 120px; width: 100%; text-align: left;
+    border-bottom: 2px solid #000; padding-bottom: 16px; margin-bottom: 16px;
+  }
+  .hint { font-size: 12px; color: #666; }
+
+  .choice-row { display: flex; gap: 12px; width: 100%; }
+  .choice-btn {
+    flex: 1; padding: 18px 12px; border: 2px solid #000; background: #fff;
+    font-size: 15px; font-weight: 600; border-radius: 4px;
+  }
+  .choice-btn.selected { background: #000; color: #fff; }
+
+  .field-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin: 20px 0 10px; align-self: flex-start; }
+  .option-grid { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+  .option-btn { flex: 1 1 auto; padding: 12px 10px; border: 2px solid #000; background: #fff; font-size: 14px; font-weight: 500; border-radius: 4px; min-width: 90px; }
+  .option-btn.selected { background: #000; color: #fff; }
+
+  input[type="time"], input[type="date"] {
+    font-family: inherit; font-size: 15px; padding: 10px; border: 2px solid #000; border-radius: 4px; width: 100%;
+  }
+
+  .summary-line { display: flex; justify-content: space-between; width: 100%; padding: 10px 0; border-bottom: 1px solid #ccc; font-size: 14px; }
+  .summary-line b { font-weight: 700; }
+
+  .primary-btn {
+    width: 100%; padding: 16px; background: #000; color: #fff; border: none; border-radius: 4px;
+    font-size: 15px; font-weight: 700; margin-top: 20px;
+  }
+  .ghost-btn { width: 100%; padding: 12px; background: #fff; color: #000; border: 2px solid #000; border-radius: 4px; font-size: 14px; font-weight: 600; margin-top: 8px; }
+
+  .filter-row { display: flex; justify-content: flex-end; margin-bottom: 12px; position: relative; }
+  .filter-icon-btn { border: 2px solid #000; background: #fff; border-radius: 8px; padding: 8px 10px; display: flex; align-items: center; justify-content: center; }
+  .filter-options { position: absolute; top: 38px; right: 0; z-index: 5; background: #fff; border: 2px solid #000; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .filter-btn { padding: 6px 12px; border: 2px solid #000; background: #fff; font-size: 12px; font-weight: 600; border-radius: 20px; white-space: nowrap; }
+  .filter-btn.active { background: #000; color: #fff; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card {
+    border: 2px solid #000; border-left-width: 7px; border-radius: 6px; padding: 12px; text-align: left; background: #fff;
+    display: flex; flex-direction: column; gap: 6px; min-height: 100px;
+  }
+  .card .date { font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .card .title { font-size: 13px; font-weight: 600; flex: 1; }
+  .card.imp-alta { border-left-color: #FF5C72; }
+  .card.imp-media { border-left-color: #E7B24B; }
+  .card.imp-baixa { border-left-color: #7EA672; }
+
+  .empty-note { font-size: 13px; color: #666; grid-column: 1 / -1; }
+
+  .home-hero { text-align: center; padding: 22px 0 18px; margin: -46px -20px 18px; padding-left:20px; padding-right:20px; padding-top: 46px; }
+  .home-time { font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+  .home-date { font-size: 13px; color: #666; margin-top: 6px; text-transform: capitalize; }
+  .home-temp { font-size: 20px; font-weight: 600; margin-top: 12px; }
+
+  #home-calendar { margin: 0 -16px 20px; border: 2px solid #000; border-radius: 12px; padding: 14px 8px; }
+  .cal { margin-bottom: 0; }
+  .modal .cal { margin-left: -14px; margin-right: -14px; }
+  .cal-header { display: flex; align-items: center; margin-bottom: 10px; }
+  .cal-header .cal-month { flex: 1; text-align: center; font-size: 14px; font-weight: 700; text-transform: capitalize; }
+  .cal-nav { border: 2px solid #000; background: #fff; width: 28px; height: 28px; border-radius: 6px; font-size: 14px; font-weight: 700; line-height: 1; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-dow { font-size: 9px; text-align: center; color: #666; font-weight: 700; }
+  .cal-day {
+    aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 12px; border-radius: 6px; border: 1px solid transparent; background: none; position: relative;
+  }
+  .cal-day.today { border: 2px solid #000; font-weight: 700; }
+  .cal-day.empty { visibility: hidden; }
+  .cal-day .cal-dots { display: flex; gap: 2px; margin-top: 2px; }
+  .cal-day .cal-priority-dot { width: 4px; height: 4px; border-radius: 50%; }
+  .cal-priority-dot.alta { background: #FF5C72; }
+  .cal-priority-dot.media { background: #E7B24B; }
+  .cal-priority-dot.baixa { background: #7EA672; }
+
+  .modal-backdrop {
+    position: absolute; inset: 0; background: rgba(255,255,255,0.96); z-index: 20;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal { width: 100%; background: #fff; border: 2px solid #000; border-radius: 20px; padding: 32px 24px; }
+  .modal h2 { margin: 0 0 20px; font-size: 26px; text-align: center; }
+  .modal .row { font-size: 16px; margin-bottom: 12px; text-align: center; }
+  .close-btn { position: absolute; top: 16px; right: 20px; font-size: 20px; border: none; background: none; }
+
+  .cam-mark { font-size: 60px; font-weight: 800; }
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <div class="notch"></div>
+  <div class="viewport">
+  <div class="track" id="track">
+
+    <!-- -1 : CÂMERA (placeholder, não funcional ainda) -->
+    <div class="panel" id="p--1">
+      <div class="center">
+        <div class="cam-mark">−1</div>
+        <h1>Câmera</h1>
+        <p class="hint">(essa parte ainda não funciona — só testando pra onde o gesto leva)</p>
+      </div>
+    </div>
+
+    <!-- 0 : INICIAL -->
+    <div class="panel" id="p-0">
+      <h1>Meu Organizador</h1>
+      <div class="center" id="capture-root"></div>
+    </div>
+
+    <!-- +1 : HOME -->
+    <div class="panel" id="p-1">
+      <div class="home-hero">
+        <div class="home-time" id="home-time">--:--</div>
+        <div class="home-date" id="home-date">carregando...</div>
+        <div class="home-temp" id="home-temp">--°</div>
+      </div>
+      <div id="home-calendar"></div>
+      <div id="home-list"></div>
+    </div>
+
+    <!-- +2 : ANOTAÇÃO -->
+    <div class="panel" id="p-2">
+      <h1 class="big-title">Anotações</h1>
+      <div class="filter-row" id="filter-notas"></div>
+      <div class="grid" id="grid-notas"></div>
+    </div>
+
+    <!-- +3 : TAREFA -->
+    <div class="panel" id="p-3">
+      <h1 class="big-title">Tarefas</h1>
+      <div class="filter-row" id="filter-tarefas"></div>
+      <div class="grid" id="grid-tarefas"></div>
+    </div>
+
+  </div>
+  </div>
+  <div id="modal-root"></div>
+</div>
+
+<script>
+/* ---------- estado ---------- */
+const POSITIONS = ["-1","0","1","2","3"]; // ordem no DOM
+let posIndex = 1; // começa em 0 (Inicial)
+
+let notas = [
+  { id: 101, titulo: "Pauta do TCC — marca desafiante x estabelecida", importancia: "alta", createdAt: Date.now() - 1000 * 60 * 60 * 5 },
+  { id: 102, titulo: "Ideia pra conteúdo DOT: bastidor do A/B test", importancia: "media", createdAt: Date.now() - 1000 * 60 * 60 * 30 },
+  { id: 103, titulo: "Lembrar de renovar assinatura do Canva", importancia: "baixa", createdAt: Date.now() - 1000 * 60 * 60 * 50 },
+];
+let tarefas = [
+  { id: 201, titulo: "Entregar briefing pro DOT Lab", importancia: "alta", data: "hoje", horario: "14:00", createdAt: Date.now() - 1000 * 60 * 60 * 2 },
+  { id: 202, titulo: "Reunião com creators", importancia: "alta", data: "hoje", horario: "16:30", createdAt: Date.now() - 1000 * 60 * 60 * 3 },
+  { id: 203, titulo: "Resumo pra prova de Branding", importancia: "media", data: "próx. dias", horario: "", createdAt: Date.now() - 1000 * 60 * 60 * 20 },
+  { id: 204, titulo: "Academia", importancia: "baixa", data: "hoje", horario: "19:00", createdAt: Date.now() - 1000 * 60 * 60 * 1 },
+  { id: 205, titulo: "Prova de Branding", importancia: "alta", data: _plusDays(3), horario: "10:00", createdAt: Date.now() },
+  { id: 206, titulo: "Reunião de planejamento DOT", importancia: "media", data: _plusDays(7), horario: "11:00", createdAt: Date.now() },
+];
+function _plusDays(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+let idSeq = 300;
+
+let sortNotas = "recentes";
+let sortTarefas = "recentes";
+
+/* rascunho da captura em andamento */
+let draft = null; // { step, texto, tipo, data, horario, importancia }
+
+/* ---------- navegação por arraste ---------- */
+const track = document.getElementById("track");
+const viewport = document.querySelector(".viewport");
+
+function render() {
+  track.classList.add("animating");
+  track.style.transform = `translateX(-${posIndex * viewport.clientWidth}px)`;
+}
+render();
+
+function goTo(index) {
+  posIndex = Math.max(0, Math.min(POSITIONS.length - 1, index));
+  render();
+}
+
+let startX = 0, startY = 0, dragging = false, currentDX = 0;
+
+function onStart(x, y) {
+  startX = x; startY = y; dragging = true; currentDX = 0;
+  track.classList.remove("animating");
+}
+function onMove(x, y) {
+  if (!dragging) return;
+  currentDX = x - startX;
+  const dy = y - startY;
+  if (Math.abs(dy) > Math.abs(currentDX)) return; // scroll vertical, ignora
+  const w = viewport.clientWidth;
+  const base = -posIndex * w;
+  let next = base + currentDX;
+  const minX = -(POSITIONS.length - 1) * w; // limite da última seção (+3)
+  const maxX = 0; // limite da primeira seção (-1)
+  if (next > maxX) next = maxX + (next - maxX) * 0.25; // resistência no início
+  if (next < minX) next = minX + (next - minX) * 0.25; // resistência no fim
+  track.style.transform = `translateX(${next}px)`;
+}
+function onEnd() {
+  if (!dragging) return;
+  dragging = false;
+  track.classList.add("animating");
+  const threshold = 60;
+  if (currentDX <= -threshold) {
+    // arrastou pra ESQUERDA -> avança (0->+1->+2->+3)
+    goTo(posIndex + 1);
+  } else if (currentDX >= threshold) {
+    // arrastou pra DIREITA -> vai direto pra Câmera (-1), de qualquer seção
+    if (posIndex === 0) {
+      // já está na câmera, direita não faz nada (ponta)
+      render();
+    } else {
+      goTo(0);
+    }
+  } else {
+    render();
+  }
+}
+
+viewport.addEventListener("touchstart", (e) => onStart(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+viewport.addEventListener("touchmove", (e) => onMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+viewport.addEventListener("touchend", onEnd);
+
+viewport.addEventListener("mousedown", (e) => onStart(e.clientX, e.clientY));
+viewport.addEventListener("mousemove", (e) => onMove(e.clientX, e.clientY));
+window.addEventListener("mouseup", onEnd);
+
+/* arrasto de dois dedos no trackpad (gesto horizontal do mouse/trackpad) */
+let wheelCooldown = false;
+viewport.addEventListener("wheel", (e) => {
+  if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return; // é scroll vertical, ignora
+  if (Math.abs(e.deltaX) < 24) return; // movimento pequeno demais, ignora
+  if (wheelCooldown) return;
+  wheelCooldown = true;
+  if (e.deltaX > 0) {
+    goTo(posIndex + 1); // dois dedos pra esquerda -> avança
+  } else if (posIndex !== 0) {
+    goTo(0); // dois dedos pra direita -> vai pra Câmera
+  }
+  setTimeout(() => { wheelCooldown = false; }, 450);
+}, { passive: true });
+
+/* bloqueia avanço além de +3 e além de -1 já tratado acima */
+
+/* ---------- fluxo de captura (seção 0) ---------- */
+const captureRoot = document.getElementById("capture-root");
+
+function newDraft() {
+  return { step: "mic", texto: "", tipo: null, data: null, horario: "", importancia: null };
+}
+
+function startDraftIfNeeded() {
+  if (!draft) draft = newDraft();
+}
+
+let recognizing = false;
+let recognition = null;
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function renderCapture() {
+  startDraftIfNeeded();
+  const d = draft;
+  captureRoot.innerHTML = "";
+
+  if (d.step === "mic") {
+    const wrap = document.createElement("div");
+    wrap.style.width = "100%";
+    if (d.texto) {
+      const p = document.createElement("div");
+      p.className = "live-text";
+      p.textContent = d.texto;
+      wrap.appendChild(p);
+    }
+    const btn = document.createElement("button");
+    btn.className = "mic-btn" + (recognizing ? " recording" : "");
+    btn.textContent = recognizing ? "falando…" : "🎤 falar";
+    btn.onclick = () => toggleMic();
+    wrap.appendChild(document.createElement("br"));
+    const btnHolder = document.createElement("div");
+    btnHolder.style.display = "flex";
+    btnHolder.style.justifyContent = "center";
+    btnHolder.style.marginTop = "12px";
+    btnHolder.appendChild(btn);
+    wrap.appendChild(btnHolder);
+
+    if (d.texto && !recognizing) {
+      const confirmBtn = document.createElement("button");
+      confirmBtn.className = "primary-btn";
+      confirmBtn.textContent = "Confirmar texto";
+      confirmBtn.onclick = () => { d.step = "tipo"; renderCapture(); };
+      wrap.appendChild(confirmBtn);
+    }
+
+    if (!SpeechRec) {
+      const hint = document.createElement("p");
+      hint.className = "hint";
+      hint.style.marginTop = "10px";
+      hint.textContent = "reconhecimento de voz não disponível neste navegador — digite abaixo pra simular:";
+      wrap.appendChild(hint);
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "digite o que você falaria...";
+      input.style.cssText = "width:100%;padding:12px;border:2px solid #000;border-radius:4px;font-size:15px;margin-top:8px;";
+      input.oninput = (e) => { d.texto = e.target.value; };
+      input.onkeydown = (e) => { if (e.key === "Enter" && d.texto.trim()) { d.step = "tipo"; renderCapture(); } };
+      wrap.appendChild(input);
+    }
+
+    captureRoot.appendChild(wrap);
+    return;
+  }
+
+  if (d.step === "tipo") {
+    const wrap = document.createElement("div");
+    wrap.style.width = "100%";
+    const preview = document.createElement("div");
+    preview.className = "live-text";
+    preview.style.fontSize = "16px";
+    preview.textContent = d.texto;
+    wrap.appendChild(preview);
+
+    const label = document.createElement("div");
+    label.className = "field-label";
+    label.textContent = "anotação ou compromisso?";
+    wrap.appendChild(label);
+
+    const row = document.createElement("div");
+    row.className = "choice-row";
+    ["anotacao", "compromisso"].forEach((tipo) => {
+      const b = document.createElement("button");
+      b.className = "choice-btn";
+      b.textContent = tipo === "anotacao" ? "Anotação" : "Compromisso";
+      b.onclick = () => {
+        d.tipo = tipo;
+        d.step = tipo === "anotacao" ? "importancia" : "data";
+        renderCapture();
+      };
+      row.appendChild(b);
+    });
+    wrap.appendChild(row);
+    captureRoot.appendChild(wrap);
+    return;
+  }
+
+  if (d.step === "data") {
+    stepOptions(
+      "quando é?",
+      [["hoje", "Hoje"], ["proximos", "Próximos dias"], ["especifico", "Dia específico"]],
+      d.data,
+      (val) => {
+        d.data = val;
+        if (val === "especifico") {
+          d.step = "data-especifica";
+        } else {
+          d.step = "horario";
+        }
+        renderCapture();
+      }
+    );
+    return;
+  }
+
+  if (d.step === "data-especifica") {
+    const wrap = document.createElement("div");
+    wrap.style.width = "100%";
+    const label = document.createElement("div");
+    label.className = "field-label";
+    label.textContent = "qual dia?";
+    wrap.appendChild(label);
+    const input = document.createElement("input");
+    input.type = "date";
+    input.value = d.dataEspecifica || "";
+    input.onchange = (e) => { d.dataEspecifica = e.target.value; };
+    wrap.appendChild(input);
+    const next = document.createElement("button");
+    next.className = "primary-btn";
+    next.textContent = "Continuar";
+    next.onclick = () => { d.step = "horario"; renderCapture(); };
+    wrap.appendChild(next);
+    captureRoot.appendChild(wrap);
+    return;
+  }
+
+  if (d.step === "horario") {
+    const wrap = document.createElement("div");
+    wrap.style.width = "100%";
+    const label = document.createElement("div");
+    label.className = "field-label";
+    label.textContent = "horário";
+    wrap.appendChild(label);
+    const input = document.createElement("input");
+    input.type = "time";
+    input.value = d.horario || "";
+    input.onchange = (e) => { d.horario = e.target.value; };
+    wrap.appendChild(input);
+    const next = document.createElement("button");
+    next.className = "primary-btn";
+    next.textContent = "Continuar";
+    next.onclick = () => { d.step = "importancia"; renderCapture(); };
+    wrap.appendChild(next);
+    captureRoot.appendChild(wrap);
+    return;
+  }
+
+  if (d.step === "importancia") {
+    stepOptions(
+      "importância",
+      [["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]],
+      d.importancia,
+      (val) => {
+        d.importancia = val;
+        d.step = "resumo";
+        renderCapture();
+      }
+    );
+    return;
+  }
+
+  if (d.step === "resumo") {
+    const wrap = document.createElement("div");
+    wrap.style.width = "100%";
+    const title = document.createElement("div");
+    title.className = "field-label";
+    title.textContent = "resumo";
+    wrap.appendChild(title);
+
+    const lines = [["Texto", d.texto], ["Tipo", d.tipo === "anotacao" ? "Anotação" : "Compromisso"]];
+    if (d.tipo === "compromisso") {
+      lines.push(["Data", d.data === "especifico" ? (d.dataEspecifica || "—") : (d.data === "hoje" ? "Hoje" : "Próximos dias")]);
+      lines.push(["Horário", d.horario || "—"]);
+    }
+    lines.push(["Importância", d.importancia ? d.importancia[0].toUpperCase() + d.importancia.slice(1) : "—"]);
+
+    lines.forEach(([k, v]) => {
+      const row = document.createElement("div");
+      row.className = "summary-line";
+      row.innerHTML = `<span>${k}</span><b>${v}</b>`;
+      wrap.appendChild(row);
+    });
+
+    const confirm = document.createElement("button");
+    confirm.className = "primary-btn";
+    confirm.textContent = "Deslizar pra confirmar ✓";
+    confirm.onclick = () => saveDraft();
+    wrap.appendChild(confirm);
+
+    const cancel = document.createElement("button");
+    cancel.className = "ghost-btn";
+    cancel.textContent = "Cancelar";
+    cancel.onclick = () => { draft = null; renderCapture(); };
+    wrap.appendChild(cancel);
+
+    captureRoot.appendChild(wrap);
+    return;
+  }
+}
+
+function stepOptions(labelText, opts, current, onPick) {
+  const wrap = document.createElement("div");
+  wrap.style.width = "100%";
+  const label = document.createElement("div");
+  label.className = "field-label";
+  label.textContent = labelText;
+  wrap.appendChild(label);
+  const grid = document.createElement("div");
+  grid.className = "option-grid";
+  opts.forEach(([val, txt]) => {
+    const b = document.createElement("button");
+    b.className = "option-btn" + (current === val ? " selected" : "");
+    b.textContent = txt;
+    b.onclick = () => onPick(val);
+    grid.appendChild(b);
+  });
+  wrap.appendChild(grid);
+  captureRoot.appendChild(wrap);
+}
+
+function saveDraft() {
+  const d = draft;
+  const item = {
+    id: idSeq++,
+    titulo: d.texto,
+    importancia: d.importancia || "media",
+    createdAt: Date.now(),
+  };
+  if (d.tipo === "anotacao") {
+    notas.unshift(item);
+  } else {
+    item.data = d.data === "especifico" ? (d.dataEspecifica || "sem data") : (d.data === "hoje" ? "hoje" : "próx. dias");
+    item.horario = d.horario || "";
+    tarefas.unshift(item);
+  }
+  draft = null;
+  renderCapture();
+  renderGrids();
+}
+
+function toggleMic() {
+  if (!SpeechRec) return;
+  if (recognizing) {
+    recognition && recognition.stop();
+    return;
+  }
+  recognition = new SpeechRec();
+  recognition.lang = "pt-BR";
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.onstart = () => { recognizing = true; renderCapture(); };
+  recognition.onresult = (event) => {
+    let text = "";
+    for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
+    draft.texto = text;
+    renderCapture();
+  };
+  recognition.onerror = () => { recognizing = false; renderCapture(); };
+  recognition.onend = () => { recognizing = false; renderCapture(); };
+  recognition.start();
+}
+
+/* ---------- grades de anotação / tarefa ---------- */
+function sortItems(list, mode) {
+  const copy = [...list];
+  if (mode === "recentes") copy.sort((a, b) => b.createdAt - a.createdAt);
+  if (mode === "importancia") {
+    const order = { alta: 0, media: 1, baixa: 2 };
+    copy.sort((a, b) => order[a.importancia] - order[b.importancia]);
+  }
+  return copy;
+}
+
+const filterOpen = { "filter-notas": false, "filter-tarefas": false };
+
+const FUNNEL_SVG = `<svg width="18" height="14" viewBox="0 0 18 14"><line x1="1" y1="1" x2="17" y2="1" stroke="#000" stroke-width="2" stroke-linecap="round"/><line x1="4.5" y1="7" x2="13.5" y2="7" stroke="#000" stroke-width="2" stroke-linecap="round"/><line x1="7.5" y1="13" x2="10.5" y2="13" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+function renderFilter(containerId, current, onChange) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = "";
+
+  const btn = document.createElement("button");
+  btn.className = "filter-icon-btn";
+  btn.innerHTML = FUNNEL_SVG;
+  btn.onclick = () => {
+    filterOpen[containerId] = !filterOpen[containerId];
+    renderFilter(containerId, current, onChange);
+  };
+  el.appendChild(btn);
+
+  if (filterOpen[containerId]) {
+    const options = document.createElement("div");
+    options.className = "filter-options";
+    [["recentes", "Recentes"], ["importancia", "Importância"]].forEach(([val, txt]) => {
+      const b = document.createElement("button");
+      b.className = "filter-btn" + (current() === val ? " active" : "");
+      b.textContent = txt;
+      b.onclick = () => {
+        onChange(val);
+        filterOpen[containerId] = false;
+        renderGrids();
+      };
+      options.appendChild(b);
+    });
+    el.appendChild(options);
+  }
+}
+
+function renderGrid(containerId, list, kind) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = "";
+  if (list.length === 0) {
+    const p = document.createElement("p");
+    p.className = "empty-note";
+    p.textContent = kind === "nota" ? "nenhuma anotação ainda — capture algo na seção inicial." : "nenhuma tarefa ainda — capture algo na seção inicial.";
+    el.appendChild(p);
+    return;
+  }
+  list.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = `card imp-${item.importancia}`;
+    const date = document.createElement("div");
+    date.className = "date";
+    date.textContent = kind === "tarefa" ? (item.data + (item.horario ? " · " + item.horario : "")) : new Date(item.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = item.titulo.length > 60 ? item.titulo.slice(0, 60) + "…" : item.titulo;
+    card.appendChild(date);
+    card.appendChild(title);
+    card.onclick = () => openPopup(item, kind);
+    el.appendChild(card);
+  });
+}
+
+/* ---------- calendário do Home: prévia estática -> popup interativo -> popup do dia ---------- */
+function dateKey(y, m, d) {
+  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+function todayKey() {
+  const n = new Date();
+  return dateKey(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+// mapeia data -> lista de tarefas daquele dia ("hoje" vira a data de hoje; "próx. dias" não tem dia fixo, não entra no calendário)
+function tasksByDate() {
+  const map = {};
+  tarefas.forEach((t) => {
+    let key = null;
+    if (t.data === "hoje") key = todayKey();
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(t.data)) key = t.data;
+    if (!key) return;
+    (map[key] = map[key] || []).push(t);
+  });
+  return map;
+}
+
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-11
+
+function monthLabel(year, month) {
+  const name = new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long" });
+  return `${name}/${String(year).slice(-2)}`;
+}
+
+// monta o header + a grade de um mês. interactive=false -> só imagem (sem setas, dias não clicáveis)
+function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick }) {
+  const wrap = document.createElement("div");
+  wrap.className = "cal";
+
+  const header = document.createElement("div");
+  header.className = "cal-header";
+  if (interactive) {
+    const prev = document.createElement("button");
+    prev.className = "cal-nav";
+    prev.textContent = "‹";
+    prev.onclick = (e) => { e.stopPropagation(); onNavigate(-1); };
+    header.appendChild(prev);
+  }
+  const label = document.createElement("div");
+  label.className = "cal-month";
+  label.textContent = monthLabel(year, month);
+  header.appendChild(label);
+  if (interactive) {
+    const next = document.createElement("button");
+    next.className = "cal-nav";
+    next.textContent = "›";
+    next.onclick = (e) => { e.stopPropagation(); onNavigate(1); };
+    header.appendChild(next);
+  }
+  wrap.appendChild(header);
+
+  const grid = document.createElement("div");
+  grid.className = "cal-grid";
+  ["D", "S", "T", "Q", "Q", "S", "S"].forEach((d) => {
+    const dow = document.createElement("div");
+    dow.className = "cal-dow";
+    dow.textContent = d;
+    grid.appendChild(dow);
+  });
+
+  const byDate = tasksByDate();
+  const tKey = todayKey();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let i = 0; i < firstWeekday; i++) {
+    const empty = document.createElement("div");
+    empty.className = "cal-day empty";
+    grid.appendChild(empty);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = dateKey(year, month, d);
+    const items = byDate[key] || [];
+    const priorities = ["alta", "media", "baixa"].filter((p) => items.some((t) => t.importancia === p));
+    const cell = document.createElement(interactive ? "button" : "div");
+    cell.className = "cal-day" + (key === tKey ? " today" : "");
+    const dotsHtml = priorities.map((p) => `<span class="cal-priority-dot ${p}"></span>`).join("");
+    cell.innerHTML = `<span>${d}</span><span class="cal-dots">${dotsHtml}</span>`;
+    if (interactive) cell.onclick = (e) => { e.stopPropagation(); onDayClick(key, items); };
+    grid.appendChild(cell);
+  }
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+// prévia na aba Home: só imagem, sem setas, dias não clicáveis — tocar em qualquer parte abre o popup
+function renderCalendar() {
+  const el = document.getElementById("home-calendar");
+  el.innerHTML = "";
+  const now = new Date();
+  const block = buildCalendarBlock({ year: now.getFullYear(), month: now.getMonth(), interactive: false });
+  el.appendChild(block);
+  el.style.cursor = "pointer";
+  el.onclick = openCalendarPopup;
+}
+
+// popup nível 1: o mesmo calendário, agora com as setas e os dias clicáveis
+function openCalendarPopup() {
+  calYear = new Date().getFullYear();
+  calMonth = new Date().getMonth();
+  renderCalendarPopup();
+}
+
+function renderCalendarPopup() {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = "";
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.onclick = (e) => { if (e.target === backdrop) root.innerHTML = ""; };
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.style.position = "relative";
+
+  const close = document.createElement("button");
+  close.className = "close-btn";
+  close.textContent = "✕";
+  close.onclick = () => { root.innerHTML = ""; };
+  modal.appendChild(close);
+
+  const block = buildCalendarBlock({
+    year: calYear,
+    month: calMonth,
+    interactive: true,
+    onNavigate: (dir) => {
+      calMonth += dir;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      renderCalendarPopup();
+    },
+    onDayClick: (key, items) => openDayPopup(key, items),
+  });
+  modal.appendChild(block);
+
+  backdrop.appendChild(modal);
+  root.appendChild(backdrop);
+}
+
+// popup nível 2: a data escolhida e o que tem marcado nela
+function openDayPopup(key, items) {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = "";
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.onclick = (e) => { if (e.target === backdrop) root.innerHTML = ""; };
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.style.position = "relative";
+
+  const close = document.createElement("button");
+  close.className = "close-btn";
+  close.textContent = "✕";
+  close.onclick = () => { root.innerHTML = ""; };
+  modal.appendChild(close);
+
+  const h2 = document.createElement("h2");
+  const label = new Date(key + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+  h2.textContent = label;
+  modal.appendChild(h2);
+
+  if (items.length === 0) {
+    const p = document.createElement("div");
+    p.className = "row";
+    p.textContent = "nada marcado nesse dia.";
+    modal.appendChild(p);
+  } else {
+    items
+      .slice()
+      .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""))
+      .forEach((t) => {
+        const card = document.createElement("div");
+        card.className = `card imp-${t.importancia}`;
+        card.style.marginBottom = "10px";
+        card.style.cursor = "pointer";
+        card.innerHTML = `<div class="date">${t.horario || "sem horário"}</div><div class="title">${t.titulo}</div>`;
+        card.onclick = () => openPopup(t, "tarefa");
+        modal.appendChild(card);
+      });
+  }
+
+  backdrop.appendChild(modal);
+  root.appendChild(backdrop);
+}
+
+function renderHome() {
+  const el = document.getElementById("home-list");
+  el.innerHTML = "";
+  const hoje = tarefas.filter((t) => t.data === "hoje").sort((a, b) => a.horario.localeCompare(b.horario));
+  if (hoje.length === 0) {
+    const p = document.createElement("p");
+    p.className = "empty-note";
+    p.textContent = "nada marcado pra hoje.";
+    el.appendChild(p);
+    return;
+  }
+  hoje.forEach((t) => {
+    const row = document.createElement("div");
+    row.className = `card imp-${t.importancia}`;
+    row.style.marginBottom = "8px";
+    row.style.minHeight = "auto";
+    row.innerHTML = `<div class="date">${t.horario || "sem horário"}</div><div class="title">${t.titulo}</div>`;
+    row.onclick = () => openPopup(t, "tarefa");
+    el.appendChild(row);
+  });
+}
+
+/* ---------- bloco grande do Home: hora, dia, temperatura ---------- */
+// temperatura é mockada aqui (sem API de clima ligada ainda no protótipo)
+const MOCK_TEMP = "23°";
+
+function updateHomeHero() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  document.getElementById("home-time").textContent = `${hh}:${mm}`;
+  document.getElementById("home-date").textContent = now.toLocaleDateString("pt-BR", {
+    weekday: "long", day: "numeric", month: "long",
+  });
+  document.getElementById("home-temp").textContent = MOCK_TEMP;
+}
+updateHomeHero();
+setInterval(updateHomeHero, 30000);
+
+function renderGrids() {
+  renderFilter("filter-notas", () => sortNotas, (v) => { sortNotas = v; });
+  renderFilter("filter-tarefas", () => sortTarefas, (v) => { sortTarefas = v; });
+  renderGrid("grid-notas", sortItems(notas, sortNotas), "nota");
+  renderGrid("grid-tarefas", sortItems(tarefas, sortTarefas), "tarefa");
+  renderHome();
+  renderCalendar();
+}
+
+/* ---------- popup com os detalhes ---------- */
+function openPopup(item, kind) {
+  const root = document.getElementById("modal-root");
+  root.innerHTML = "";
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.onclick = (e) => { if (e.target === backdrop) root.innerHTML = ""; };
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.style.position = "relative";
+
+  const close = document.createElement("button");
+  close.className = "close-btn";
+  close.textContent = "✕";
+  close.onclick = () => { root.innerHTML = ""; };
+  modal.appendChild(close);
+
+  const h2 = document.createElement("h2");
+  h2.textContent = kind === "tarefa" ? "Compromisso" : "Anotação";
+  modal.appendChild(h2);
+
+  const rows = [["Texto", item.titulo]];
+  if (kind === "tarefa") { rows.push(["Data", item.data]); rows.push(["Horário", item.horario || "—"]); }
+
+  rows.forEach(([k, v]) => {
+    const r = document.createElement("div");
+    r.className = "row";
+    r.innerHTML = `<b>${k}:</b> ${v}`;
+    modal.appendChild(r);
+  });
+
+  backdrop.appendChild(modal);
+  root.appendChild(backdrop);
+}
+
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "pt-BR";
+  window.speechSynthesis.speak(u);
+}
+
+/* ---------- boot ---------- */
+renderCapture();
+renderGrids();
+</script>
+</body>
+</html>

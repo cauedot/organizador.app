@@ -243,7 +243,7 @@ function onMove(x, y) {
   if (Math.abs(dy) > Math.abs(currentDX)) return;
   const w = viewport.clientWidth;
   const base = -posIndex * w;
-  let next = base + currentDX;
+  let next = base - currentDX;
   const minX = -(POSITIONS.length - 1) * w;
   const maxX = 0;
   if (next > maxX) next = maxX + (next - maxX) * 0.25;
@@ -256,9 +256,9 @@ function onEnd() {
   track.classList.add("animating");
   const threshold = 60;
   if (currentDX <= -threshold) {
-    goTo(posIndex + 1);
-  } else if (currentDX >= threshold) {
     goTo(posIndex - 1);
+  } else if (currentDX >= threshold) {
+    goTo(posIndex + 1);
   } else {
     render();
   }

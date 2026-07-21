@@ -668,12 +668,8 @@ function renderGridTitle(containerId, label, currentView, onChange) {
 
   const btn = document.createElement("button");
   btn.className = "grid-title-btn";
-  const arrow = document.createElement("span");
-  arrow.className = "grid-title-arrow";
-  arrow.textContent = "▾";
   const titleSpan = document.createElement("span");
   titleSpan.textContent = label;
-  btn.appendChild(arrow);
   btn.appendChild(titleSpan);
 
   const drop = document.createElement("div");

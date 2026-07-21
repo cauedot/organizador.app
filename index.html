@@ -771,26 +771,20 @@ function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick, 
 function buildMonthPicker() {
   const ITEM_H = 44;
   const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const START_YEAR = homeCalYear - 3;
+  const END_YEAR = homeCalYear + 3;
+
+  const allItems = [];
+  for (let y = START_YEAR; y <= END_YEAR; y++) {
+    for (let m = 0; m < 12; m++) {
+      allItems.push({ year: y, month: m, label: `${MONTHS[m]}/${String(y).slice(-2)}` });
+    }
+  }
+
+  const initialIdx = (homeCalYear - START_YEAR) * 12 + homeCalMonth;
 
   const picker = document.createElement("div");
   picker.className = "month-picker";
-
-  const yearRow = document.createElement("div");
-  yearRow.className = "month-picker-year";
-  const prevY = document.createElement("button");
-  prevY.className = "cal-nav";
-  prevY.textContent = "‹";
-  prevY.onclick = (e) => { e.stopPropagation(); homePickerYear--; renderCalendar(); };
-  const yearLabel = document.createElement("span");
-  yearLabel.textContent = homePickerYear;
-  const nextY = document.createElement("button");
-  nextY.className = "cal-nav";
-  nextY.textContent = "›";
-  nextY.onclick = (e) => { e.stopPropagation(); homePickerYear++; renderCalendar(); };
-  yearRow.appendChild(prevY);
-  yearRow.appendChild(yearLabel);
-  yearRow.appendChild(nextY);
-  picker.appendChild(yearRow);
 
   const outer = document.createElement("div");
   outer.className = "month-roller-outer";
@@ -802,15 +796,16 @@ function buildMonthPicker() {
   roller.className = "month-roller";
   roller.appendChild(Object.assign(document.createElement("div"), { className: "month-roller-pad" }));
 
-  MONTHS.forEach((m, i) => {
+  allItems.forEach(({ year, month, label }) => {
     const item = document.createElement("div");
     item.className = "month-roller-item";
-    item.textContent = m;
+    item.textContent = label;
     item.onclick = (e) => {
       e.stopPropagation();
-      homeCalMonth = i;
-      homeCalYear = homePickerYear;
+      homeCalMonth = month;
+      homeCalYear = year;
       homePickerOpen = false;
+      document.getElementById("modal-root").innerHTML = "";
       renderCalendar();
       renderHome();
     };
@@ -828,7 +823,6 @@ function buildMonthPicker() {
     });
   };
 
-  const initialIdx = homePickerYear === homeCalYear ? homeCalMonth : 0;
   setTimeout(() => { roller.scrollTop = initialIdx * ITEM_H; updateVisual(); }, 0);
   roller.addEventListener("scroll", updateVisual);
 
@@ -846,7 +840,6 @@ function renderCalendar() {
     selectedKey: selectedHomeKey,
     onMonthLabelClick: () => {
       homePickerOpen = !homePickerOpen;
-      homePickerYear = homeCalYear;
       renderCalendar();
     },
     onDayClick: (key, items) => {

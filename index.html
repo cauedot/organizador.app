@@ -684,12 +684,18 @@ function renderGridTitle(containerId, label, currentView, onChange) {
     drop.appendChild(opt);
   });
 
+  let dropOpen = false;
   btn.onclick = (e) => {
     e.stopPropagation();
-    const open = drop.style.display === "none";
-    drop.style.display = open ? "block" : "none";
-    if (open) {
-      const close = () => { drop.style.display = "none"; document.removeEventListener("click", close, true); };
+    dropOpen = !dropOpen;
+    drop.style.display = dropOpen ? "block" : "none";
+    if (dropOpen) {
+      const close = (ev) => {
+        if (btn.contains(ev.target)) return;
+        dropOpen = false;
+        drop.style.display = "none";
+        document.removeEventListener("click", close, true);
+      };
       setTimeout(() => document.addEventListener("click", close, true), 0);
     }
   };

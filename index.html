@@ -743,8 +743,6 @@ function renderCalendar() {
   const now = new Date();
   const block = buildCalendarBlock({ year: now.getFullYear(), month: now.getMonth(), interactive: false });
   el.appendChild(block);
-  el.style.cursor = "pointer";
-  el.onclick = openCalendarPopup;
 }
 
 function openCalendarPopup() {

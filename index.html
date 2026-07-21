@@ -678,7 +678,7 @@ function monthLabel(year, month) {
   return `${name}/${String(year).slice(-2)}`;
 }
 
-function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick }) {
+function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick, selectedKey }) {
   const wrap = document.createElement("div");
   wrap.className = "cal";
 

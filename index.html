@@ -108,7 +108,7 @@
   .modal .cal { margin-left: -14px; margin-right: -14px; }
   .cal-header { display: flex; align-items: center; margin-bottom: 10px; }
   .cal-header .cal-month { flex: 1; text-align: center; font-size: 14px; font-weight: 700; text-transform: capitalize; }
-  .cal-nav { border: 2px solid #000; background: #fff; width: 32px; height: 32px; border-radius: 6px; font-size: 16px; font-weight: 700; line-height: 1; }
+  .cal-nav { border: 2px solid #000; background: #fff; color: #000; width: 32px; height: 32px; border-radius: 6px; font-size: 16px; font-weight: 700; line-height: 1; }
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
   .cal-dow { font-size: 9px; text-align: center; color: #666; font-weight: 700; }
   .cal-day {
@@ -229,6 +229,8 @@ let idSeq = 300;
 let sortNotas = "recentes";
 let sortTarefas = "recentes";
 let selectedHomeKey = null;
+let homeCalYear = new Date().getFullYear();
+let homeCalMonth = new Date().getMonth();
 
 let draft = null;
 
@@ -745,12 +747,17 @@ function renderCalendar() {
   if (!selectedHomeKey) selectedHomeKey = todayKey();
   const el = document.getElementById("home-calendar");
   el.innerHTML = "";
-  const now = new Date();
   const block = buildCalendarBlock({
-    year: now.getFullYear(),
-    month: now.getMonth(),
-    interactive: false,
+    year: homeCalYear,
+    month: homeCalMonth,
+    interactive: true,
     selectedKey: selectedHomeKey,
+    onNavigate: (dir) => {
+      homeCalMonth += dir;
+      if (homeCalMonth < 0) { homeCalMonth = 11; homeCalYear--; }
+      if (homeCalMonth > 11) { homeCalMonth = 0; homeCalYear++; }
+      renderCalendar();
+    },
     onDayClick: (key, items) => {
       selectedHomeKey = key;
       renderCalendar();

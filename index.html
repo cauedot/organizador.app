@@ -336,7 +336,7 @@ window.addEventListener("mouseup", onEnd);
 let wheelCooldown = false;
 viewport.addEventListener("wheel", (e) => {
   if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
-  if (Math.abs(e.deltaX) < 24) return;
+  if (Math.abs(e.deltaX) < 10) return;
   if (wheelCooldown) return;
   wheelCooldown = true;
   if (e.deltaX > 0) {
@@ -344,7 +344,7 @@ viewport.addEventListener("wheel", (e) => {
   } else {
     goTo(posIndex - 1);
   }
-  setTimeout(() => { wheelCooldown = false; }, 450);
+  setTimeout(() => { wheelCooldown = false; }, 300);
 }, { passive: true });
 
 /* ---------- fluxo de captura ---------- */

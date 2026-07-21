@@ -142,11 +142,11 @@
   .task-done { opacity: 0.45; }
   .task-done .title { text-decoration: line-through; }
 
-  .grid-title-wrap { position: relative; margin-bottom: 4px; }
-  .grid-title-btn { background: none; border: none; font-size: 34px; font-weight: 700; color: #000; cursor: pointer; padding: 0; display: flex; align-items: baseline; gap: 8px; width: 100%; }
-  .grid-title-badge { font-size: 13px; font-weight: 600; color: #666; border: 1.5px solid #ccc; border-radius: 20px; padding: 2px 10px; }
-  .grid-title-drop { position: absolute; top: calc(100% + 4px); left: 0; background: #fff; border: 2px solid #000; border-radius: 8px; overflow: hidden; z-index: 10; min-width: 170px; }
-  .grid-title-opt { display: block; width: 100%; padding: 13px 16px; text-align: left; background: #fff; border: none; font-size: 15px; cursor: pointer; color: #000; }
+  .grid-title-wrap { position: relative; margin-bottom: 4px; display: flex; justify-content: center; }
+  .grid-title-btn { background: none; border: none; font-size: 34px; font-weight: 700; color: #000; cursor: pointer; padding: 0; display: flex; align-items: baseline; gap: 6px; }
+  .grid-title-arrow { font-size: 16px; font-weight: 400; color: #000; }
+  .grid-title-drop { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #fff; border: 2px solid #000; border-radius: 8px; overflow: hidden; z-index: 10; min-width: 170px; }
+  .grid-title-opt { display: block; width: 100%; padding: 13px 16px; text-align: center; background: #fff; border: none; font-size: 15px; cursor: pointer; color: #000; }
   .grid-title-opt.active { font-weight: 700; }
   .grid-title-opt:not(:last-child) { border-bottom: 1px solid #eee; }
 
@@ -670,11 +670,11 @@ function renderGridTitle(containerId, label, currentView, onChange) {
   btn.className = "grid-title-btn";
   const titleSpan = document.createElement("span");
   titleSpan.textContent = label;
-  const badge = document.createElement("span");
-  badge.className = "grid-title-badge";
-  badge.textContent = currentView === "pendentes" ? "Pendentes ▾" : "Concluídas ▾";
+  const arrow = document.createElement("span");
+  arrow.className = "grid-title-arrow";
+  arrow.textContent = "▾";
   btn.appendChild(titleSpan);
-  btn.appendChild(badge);
+  btn.appendChild(arrow);
 
   const drop = document.createElement("div");
   drop.className = "grid-title-drop";

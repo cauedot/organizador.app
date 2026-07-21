@@ -275,7 +275,7 @@ function render() {
   track.classList.add("animating");
   track.style.transform = `translateX(-${posIndex * viewport.clientWidth}px)`;
 }
-render();
+track.style.transform = `translateX(-${posIndex * viewport.clientWidth}px)`;
 
 function goTo(index) {
   posIndex = Math.max(0, Math.min(POSITIONS.length - 1, index));

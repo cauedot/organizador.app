@@ -283,17 +283,24 @@ function goTo(index) {
 }
 
 let startX = 0, startY = 0, dragging = false, currentDX = 0;
+let swipeIntent = null; // "horizontal" | "vertical" | null
 
 function onStart(x, y) {
   if (homePickerOpen) return;
-  startX = x; startY = y; dragging = true; currentDX = 0;
+  startX = x; startY = y; dragging = true; currentDX = 0; swipeIntent = null;
   track.classList.remove("animating");
 }
 function onMove(x, y) {
   if (!dragging) return;
   currentDX = x - startX;
   const dy = y - startY;
-  if (Math.abs(dy) > Math.abs(currentDX)) return;
+
+  if (!swipeIntent) {
+    if (Math.abs(currentDX) < 8 && Math.abs(dy) < 8) return;
+    swipeIntent = Math.abs(currentDX) >= Math.abs(dy) ? "horizontal" : "vertical";
+  }
+  if (swipeIntent !== "horizontal") return;
+
   const w = viewport.clientWidth;
   const base = -posIndex * w;
   let next = base + currentDX;
@@ -306,8 +313,9 @@ function onMove(x, y) {
 function onEnd() {
   if (!dragging) return;
   dragging = false;
+  swipeIntent = null;
   track.classList.add("animating");
-  const threshold = 60;
+  const threshold = 45;
   if (currentDX <= -threshold) {
     goTo(posIndex + 1);
   } else if (currentDX >= threshold) {

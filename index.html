@@ -762,11 +762,17 @@ function buildCalendarBlock({ year, month, interactive, onNavigate, onDayClick, 
   for (let d = 1; d <= daysInMonth; d++) {
     const key = dateKey(year, month, d);
     const items = byDate[key] || [];
-    const priorities = ["alta", "media", "baixa"].filter((p) => items.some((t) => t.importancia === p));
     const clickable = interactive || !!onDayClick;
     const cell = document.createElement(clickable ? "button" : "div");
     cell.className = "cal-day" + (key === tKey ? " today" : "") + (selectedKey && key === selectedKey ? " selected" : "");
-    const dotsHtml = priorities.map((p) => `<span class="cal-priority-dot ${p}"></span>`).join("");
+    const dotsHtml = ["alta", "media", "baixa"]
+      .filter((p) => items.some((t) => t.importancia === p))
+      .map((p) => {
+        const allDone = items.filter((t) => t.importancia === p).every((t) => t.done);
+        return allDone
+          ? `<span class="cal-priority-dot" style="background:#000"></span>`
+          : `<span class="cal-priority-dot ${p}"></span>`;
+      }).join("");
     cell.innerHTML = `<span>${d}</span><span class="cal-dots">${dotsHtml}</span>`;
     if (clickable) cell.onclick = (e) => { e.stopPropagation(); onDayClick(key, items); };
     grid.appendChild(cell);
@@ -1007,6 +1013,7 @@ function renderHomeList(items) {
         e.stopPropagation();
         t.done = !t.done;
         renderHomeList(items);
+        renderCalendar();
       };
 
       row.appendChild(textCol);

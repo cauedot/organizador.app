@@ -137,6 +137,11 @@
 
   .cam-mark { font-size: 60px; font-weight: 800; }
 
+  .check-btn { width: 26px; height: 26px; border: 2px solid #000; border-radius: 50%; background: #fff; color: #fff; flex-shrink: 0; cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0; }
+  .check-btn.done { background: #000; }
+  .task-done { opacity: 0.45; }
+  .task-done .title { text-decoration: line-through; }
+
   /* panel 1 — sem scroll interno */
   #p-1 { overflow: hidden; }
   .home-hero { padding: 20px 20px 16px; margin: -20px -20px 14px; }
@@ -975,13 +980,37 @@ function renderHomeList(items) {
   }
   items
     .slice()
-    .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""))
+    .sort((a, b) => {
+      if (!!a.done !== !!b.done) return a.done ? 1 : -1;
+      return (a.horario || "").localeCompare(b.horario || "");
+    })
     .forEach((t) => {
       const row = document.createElement("div");
-      row.className = `card imp-${t.importancia}`;
-      row.style.marginBottom = "8px";
-      row.style.minHeight = "auto";
-      row.innerHTML = `<div class="date">${t.horario || "sem horário"}</div><div class="title">${t.titulo}</div>`;
+      row.className = `card imp-${t.importancia}${t.done ? " task-done" : ""}`;
+      row.style.cssText = "margin-bottom:8px;min-height:auto;display:flex;align-items:center;gap:10px;";
+
+      const textCol = document.createElement("div");
+      textCol.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;";
+      const dateEl = document.createElement("div");
+      dateEl.className = "date";
+      dateEl.textContent = t.horario || "sem horário";
+      const titleEl = document.createElement("div");
+      titleEl.className = "title";
+      titleEl.textContent = t.titulo;
+      textCol.appendChild(dateEl);
+      textCol.appendChild(titleEl);
+
+      const checkBtn = document.createElement("button");
+      checkBtn.className = "check-btn" + (t.done ? " done" : "");
+      checkBtn.textContent = t.done ? "✓" : "";
+      checkBtn.onclick = (e) => {
+        e.stopPropagation();
+        t.done = !t.done;
+        renderHomeList(items);
+      };
+
+      row.appendChild(textCol);
+      row.appendChild(checkBtn);
       row.onclick = () => openPopup(t, "tarefa");
       el.appendChild(row);
     });

@@ -156,6 +156,7 @@
   .month-roller-pad { height: 44px; scroll-snap-align: center; }
   .month-roller-item { height: 44px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 500; color: #bbb; scroll-snap-align: center; cursor: pointer; }
   .month-roller-item.center-item { color: #000; font-size: 17px; font-weight: 700; }
+  .month-roller-item.active { background: #000; color: #fff; font-weight: 700; border-radius: 6px; }
   .month-roller-fade-top { position: absolute; top: 0; left: 0; right: 0; height: 44px; background: linear-gradient(to bottom, rgba(255,255,255,0.95), transparent); pointer-events: none; z-index: 1; }
   .month-roller-fade-bot { position: absolute; bottom: 0; left: 0; right: 0; height: 44px; background: linear-gradient(to top, rgba(255,255,255,0.95), transparent); pointer-events: none; z-index: 1; }
   .month-roller-center-line { position: absolute; top: 44px; left: 16px; right: 16px; height: 44px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; pointer-events: none; }
@@ -799,7 +800,7 @@ function buildMonthPicker() {
 
   allItems.forEach(({ year, month, label }) => {
     const item = document.createElement("div");
-    item.className = "month-roller-item";
+    item.className = "month-roller-item" + (month === homeCalMonth && year === homeCalYear ? " active" : "");
     item.textContent = label;
     item.onclick = (e) => {
       e.stopPropagation();

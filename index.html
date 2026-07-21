@@ -818,6 +818,10 @@ function buildMonthPicker() {
       homeCalMonth = month;
       homeCalYear = year;
       homePickerOpen = false;
+      const now = new Date();
+      selectedHomeKey = (year === now.getFullYear() && month === now.getMonth())
+        ? todayKey()
+        : dateKey(year, month, 1);
       document.getElementById("modal-root").innerHTML = "";
       renderCalendar();
       renderHome();

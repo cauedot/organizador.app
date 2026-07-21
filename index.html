@@ -142,6 +142,14 @@
   .task-done { opacity: 0.45; }
   .task-done .title { text-decoration: line-through; }
 
+  .grid-title-wrap { position: relative; margin-bottom: 4px; }
+  .grid-title-btn { background: none; border: none; font-size: 34px; font-weight: 700; color: #000; cursor: pointer; padding: 0; display: flex; align-items: baseline; gap: 8px; width: 100%; }
+  .grid-title-badge { font-size: 13px; font-weight: 600; color: #666; border: 1.5px solid #ccc; border-radius: 20px; padding: 2px 10px; }
+  .grid-title-drop { position: absolute; top: calc(100% + 4px); left: 0; background: #fff; border: 2px solid #000; border-radius: 8px; overflow: hidden; z-index: 10; min-width: 170px; }
+  .grid-title-opt { display: block; width: 100%; padding: 13px 16px; text-align: left; background: #fff; border: none; font-size: 15px; cursor: pointer; color: #000; }
+  .grid-title-opt.active { font-weight: 700; }
+  .grid-title-opt:not(:last-child) { border-bottom: 1px solid #eee; }
+
   /* panel 1 — sem scroll interno */
   #p-1 { overflow: hidden; }
   .home-hero { padding: 20px 20px 16px; margin: -20px -20px 14px; }
@@ -206,14 +214,14 @@
 
     <!-- +2 : ANOTAÇÃO -->
     <div class="panel" id="p-2">
-      <h1 class="big-title">Anotações</h1>
+      <div id="title-notas"></div>
       <div class="filter-row" id="filter-notas"></div>
       <div class="grid" id="grid-notas"></div>
     </div>
 
     <!-- +3 : TAREFA -->
     <div class="panel" id="p-3">
-      <h1 class="big-title">Tarefas</h1>
+      <div id="title-tarefas"></div>
       <div class="filter-row" id="filter-tarefas"></div>
       <div class="grid" id="grid-tarefas"></div>
     </div>
@@ -249,6 +257,8 @@ let idSeq = 300;
 
 let sortNotas = "recentes";
 let sortTarefas = "recentes";
+let viewNotas = "pendentes";
+let viewTarefas = "pendentes";
 let selectedHomeKey = null;
 let homeCalYear = new Date().getFullYear();
 let homeCalMonth = new Date().getMonth();
@@ -650,14 +660,62 @@ function renderFilter(containerId, current, onChange) {
   }
 }
 
-function renderGrid(containerId, list, kind) {
+function renderGridTitle(containerId, label, currentView, onChange) {
   const el = document.getElementById(containerId);
   el.innerHTML = "";
-  const visible = list.filter((item) => !item.done);
+  const wrap = document.createElement("div");
+  wrap.className = "grid-title-wrap";
+
+  const btn = document.createElement("button");
+  btn.className = "grid-title-btn";
+  const titleSpan = document.createElement("span");
+  titleSpan.textContent = label;
+  const badge = document.createElement("span");
+  badge.className = "grid-title-badge";
+  badge.textContent = currentView === "pendentes" ? "Pendentes ▾" : "Concluídas ▾";
+  btn.appendChild(titleSpan);
+  btn.appendChild(badge);
+
+  const drop = document.createElement("div");
+  drop.className = "grid-title-drop";
+  drop.style.display = "none";
+
+  [["pendentes", "Pendentes"], ["concluidas", "Concluídas"]].forEach(([val, txt]) => {
+    const opt = document.createElement("button");
+    opt.className = "grid-title-opt" + (val === currentView ? " active" : "");
+    opt.textContent = txt;
+    opt.onclick = (e) => { e.stopPropagation(); drop.style.display = "none"; onChange(val); };
+    drop.appendChild(opt);
+  });
+
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const open = drop.style.display === "none";
+    drop.style.display = open ? "block" : "none";
+    if (open) {
+      const close = () => { drop.style.display = "none"; document.removeEventListener("click", close, true); };
+      setTimeout(() => document.addEventListener("click", close, true), 0);
+    }
+  };
+
+  wrap.appendChild(btn);
+  wrap.appendChild(drop);
+  el.appendChild(wrap);
+}
+
+function renderGrid(containerId, list, kind) {
+  const viewState = kind === "nota" ? viewNotas : viewTarefas;
+  const el = document.getElementById(containerId);
+  el.innerHTML = "";
+  const visible = viewState === "concluidas"
+    ? list.filter((item) => item.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0))
+    : list.filter((item) => !item.done);
   if (visible.length === 0) {
     const p = document.createElement("p");
     p.className = "empty-note";
-    p.textContent = kind === "nota" ? "nenhuma anotação ainda — capture algo na seção inicial." : "nenhuma tarefa ainda — capture algo na seção inicial.";
+    p.textContent = viewState === "concluidas"
+      ? (kind === "nota" ? "nenhuma anotação concluída ainda." : "nenhuma tarefa concluída ainda.")
+      : (kind === "nota" ? "nenhuma anotação ainda — capture algo na seção inicial." : "nenhuma tarefa ainda — capture algo na seção inicial.");
     el.appendChild(p);
     return;
   }
@@ -678,6 +736,7 @@ function renderGrid(containerId, list, kind) {
     checkBtn.onclick = (e) => {
       e.stopPropagation();
       item.done = !item.done;
+      item.doneAt = item.done ? Date.now() : null;
       renderGrids();
       renderHome();
       renderCalendar();
@@ -1031,6 +1090,7 @@ function renderHomeList(items) {
       checkBtn.onclick = (e) => {
         e.stopPropagation();
         t.done = !t.done;
+        t.doneAt = t.done ? Date.now() : null;
         renderHomeList(items);
         renderCalendar();
         renderGrids();
@@ -1065,6 +1125,8 @@ updateHomeHero();
 setInterval(updateHomeHero, 30000);
 
 function renderGrids() {
+  renderGridTitle("title-notas", "Anotações", viewNotas, (v) => { viewNotas = v; renderGrids(); });
+  renderGridTitle("title-tarefas", "Tarefas", viewTarefas, (v) => { viewTarefas = v; renderGrids(); });
   renderFilter("filter-notas", () => sortNotas, (v) => { sortNotas = v; });
   renderFilter("filter-tarefas", () => sortTarefas, (v) => { sortTarefas = v; });
   renderGrid("grid-notas", sortItems(notas, sortNotas), "nota");

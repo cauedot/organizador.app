@@ -939,6 +939,11 @@ function tasksByDate() {
     if (!key) return;
     (map[key] = map[key] || []).push(t);
   });
+  notas.forEach((n) => {
+    const d = new Date(n.createdAt);
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    (map[key] = map[key] || []).push(n);
+  });
   return map;
 }
 
@@ -1209,12 +1214,13 @@ function openDayPopup(key, items) {
       .slice()
       .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""))
       .forEach((t) => {
+        const isTask = t.data !== undefined;
         const card = document.createElement("div");
         card.className = `card imp-${t.importancia}`;
         card.style.marginBottom = "10px";
         card.style.cursor = "pointer";
-        card.innerHTML = `<div class="date">${t.horario || "sem horário"}</div><div class="title">${t.titulo}</div>`;
-        card.onclick = () => openPopup(t, "tarefa");
+        card.innerHTML = `<div class="date">${isTask ? (t.horario || "sem horário") : "Anotação"}</div><div class="title">${t.titulo}</div>`;
+        card.onclick = () => openPopup(t, isTask ? "tarefa" : "nota");
         modal.appendChild(card);
       });
   }
@@ -1246,9 +1252,10 @@ function renderHomeList(items) {
 
       const textCol = document.createElement("div");
       textCol.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;";
+      const isTask = t.data !== undefined;
       const dateEl = document.createElement("div");
       dateEl.className = "date";
-      dateEl.textContent = t.horario || "sem horário";
+      dateEl.textContent = isTask ? (t.horario || "sem horário") : "Anotação";
       const titleEl = document.createElement("div");
       titleEl.className = "title";
       titleEl.textContent = t.titulo;
@@ -1270,7 +1277,7 @@ function renderHomeList(items) {
 
       row.appendChild(textCol);
       row.appendChild(checkBtn);
-      row.onclick = () => openPopup(t, "tarefa");
+      row.onclick = () => openPopup(t, isTask ? "tarefa" : "nota");
       el.appendChild(row);
     });
 }

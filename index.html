@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#ffffff" />
 <title>Meu Organizador</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -137,6 +139,23 @@
 
   .cam-mark { font-size: 60px; font-weight: 800; }
 
+  /* login */
+  #login-screen { position: fixed; inset: 0; background: #fff; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
+  #login-inner { width: 100%; max-width: 320px; display: flex; flex-direction: column; align-items: center; }
+  .login-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; text-align: center; }
+  .login-sub { font-size: 14px; color: #666; margin-bottom: 40px; text-align: center; }
+  .login-input { width: 100%; font-size: 30px; font-weight: 700; text-align: center; border: none; border-bottom: 2px solid #000; outline: none; padding: 10px 0; margin-bottom: 28px; font-family: inherit; }
+  .pin-dots { display: flex; gap: 18px; margin-bottom: 48px; }
+  .pin-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #000; background: #fff; transition: background 0.1s; }
+  .pin-dot.filled { background: #000; }
+  .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; width: 100%; max-width: 280px; }
+  .pin-key { aspect-ratio: 1; border: none; background: #f2f2f7; border-radius: 50%; font-size: 26px; font-weight: 400; cursor: pointer; font-family: inherit; color: #000; -webkit-tap-highlight-color: transparent; transition: background 0.1s; }
+  .pin-key:active { background: #c7c7cc; }
+  .pin-key.pin-empty { background: transparent; pointer-events: none; }
+  .pin-key.pin-back { font-size: 18px; }
+  .login-err { font-size: 13px; color: #FF3B30; margin-top: 12px; min-height: 18px; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-10px)} 40%{transform:translateX(10px)} 60%{transform:translateX(-10px)} 80%{transform:translateX(5px)} }
+
   .check-btn { width: 26px; height: 26px; border: 2px solid #000; border-radius: 50%; background: #fff; color: #fff; flex-shrink: 0; cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0; }
   .check-btn.done { background: #000; }
   .task-done { opacity: 0.45; }
@@ -182,6 +201,8 @@
 </style>
 </head>
 <body>
+
+<div id="login-screen"><div id="login-inner"></div></div>
 
 <div class="viewport">
   <div class="track" id="track">
@@ -231,28 +252,166 @@
 <div id="modal-root"></div>
 
 <script>
+/* ---------- firebase ---------- */
+firebase.initializeApp({
+  apiKey: "AIzaSyAm5VhVrqbDuIj0Tj8fD2m0n0g8afK8lNA",
+  authDomain: "organizador-app-ce50d.firebaseapp.com",
+  projectId: "organizador-app-ce50d",
+  storageBucket: "organizador-app-ce50d.firebasestorage.app",
+  messagingSenderId: "294709211307",
+  appId: "1:294709211307:web:bb4dc08b140d1fd35c87ee"
+});
+const db = firebase.firestore();
+
+let currentUser = localStorage.getItem("org_user") || null;
+let loginPhase = "";
+let tempUser = "";
+let tempPin = "";
+let pinBuffer = "";
+
+function showApp() {
+  document.getElementById("login-screen").style.display = "none";
+  renderCapture();
+  renderGrids();
+}
+
+let syncTimer;
+function syncToFirestore() {
+  if (!currentUser) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    db.collection("users").doc(currentUser).update({
+      notas: JSON.parse(JSON.stringify(notas)),
+      tarefas: JSON.parse(JSON.stringify(tarefas)),
+    });
+  }, 800);
+}
+
+async function doLogin(username, pin) {
+  const doc = await db.collection("users").doc(username).get();
+  if (!doc.exists || doc.data().pin !== pin) {
+    shakePinDots();
+    pinBuffer = "";
+    updatePinDots();
+    return;
+  }
+  const data = doc.data();
+  notas = data.notas || [];
+  tarefas = data.tarefas || [];
+  const allIds = [...notas.map(n => n.id), ...tarefas.map(t => t.id)];
+  if (allIds.length) idSeq = Math.max(...allIds) + 1;
+  currentUser = username;
+  localStorage.setItem("org_user", username);
+  showApp();
+}
+
+async function doRegister(username, pin) {
+  await db.collection("users").doc(username).set({ pin, notas: [], tarefas: [], createdAt: Date.now() });
+  currentUser = username;
+  localStorage.setItem("org_user", username);
+  notas = []; tarefas = [];
+  showApp();
+}
+
+function shakePinDots() {
+  const el = document.querySelector(".pin-dots");
+  if (!el) return;
+  el.style.animation = "none";
+  requestAnimationFrame(() => { el.style.animation = "shake 0.4s ease"; });
+}
+
+function updatePinDots() {
+  document.querySelectorAll(".pin-dot").forEach((d, i) => d.classList.toggle("filled", i < pinBuffer.length));
+}
+
+function buildPinPad(onKey) {
+  const pad = document.createElement("div");
+  pad.className = "pin-pad";
+  ["1","2","3","4","5","6","7","8","9","","0","⌫"].forEach((k) => {
+    const btn = document.createElement("button");
+    btn.className = "pin-key" + (k === "" ? " pin-empty" : k === "⌫" ? " pin-back" : "");
+    btn.textContent = k;
+    if (k !== "") btn.onclick = () => onKey(k);
+    pad.appendChild(btn);
+  });
+  return pad;
+}
+
+function renderPinScreen(title, sub, onComplete) {
+  pinBuffer = "";
+  const inner = document.getElementById("login-inner");
+  inner.innerHTML = "";
+
+  const t = document.createElement("div"); t.className = "login-title"; t.textContent = title;
+  const s = document.createElement("div"); s.className = "login-sub"; s.textContent = sub;
+  const dots = document.createElement("div"); dots.className = "pin-dots";
+  for (let i = 0; i < 4; i++) { const d = document.createElement("div"); d.className = "pin-dot"; dots.appendChild(d); }
+
+  const pad = buildPinPad((k) => {
+    if (k === "⌫") { pinBuffer = pinBuffer.slice(0, -1); }
+    else if (pinBuffer.length < 4) { pinBuffer += k; }
+    updatePinDots();
+    if (pinBuffer.length === 4) setTimeout(() => onComplete(pinBuffer), 120);
+  });
+
+  inner.appendChild(t);
+  inner.appendChild(s);
+  inner.appendChild(dots);
+  inner.appendChild(pad);
+}
+
+function renderUsernameScreen() {
+  const inner = document.getElementById("login-inner");
+  inner.innerHTML = "";
+
+  const t = document.createElement("div"); t.className = "login-title"; t.textContent = "Meu Organizador";
+  const s = document.createElement("div"); s.className = "login-sub"; s.textContent = "Digite os últimos dígitos do seu telefone";
+  const input = document.createElement("input");
+  input.className = "login-input"; input.placeholder = "ex: 0333"; input.maxLength = 10; input.autocomplete = "off";
+  const btn = document.createElement("button"); btn.className = "primary-btn"; btn.style.maxWidth = "280px"; btn.textContent = "Continuar";
+  const err = document.createElement("div"); err.className = "login-err";
+
+  btn.onclick = async () => {
+    const val = input.value.trim();
+    if (!val) return;
+    btn.textContent = "..."; btn.disabled = true;
+    const doc = await db.collection("users").doc(val).get();
+    if (doc.exists) {
+      currentUser = null;
+      tempUser = val;
+      renderPinScreen(val, "Digite sua senha", (pin) => doLogin(val, pin));
+    } else {
+      tempUser = val;
+      renderPinScreen(`Olá, ${val}!`, "Crie uma senha de 4 dígitos", (pin) => {
+        tempPin = pin;
+        renderPinScreen("Confirme sua senha", "", (pin2) => {
+          if (pin2 === tempPin) { doRegister(tempUser, pin2); }
+          else { shakePinDots(); pinBuffer = ""; updatePinDots(); }
+        });
+      });
+    }
+  };
+
+  input.onkeydown = (e) => { if (e.key === "Enter") btn.click(); };
+  inner.appendChild(t); inner.appendChild(s); inner.appendChild(input); inner.appendChild(btn); inner.appendChild(err);
+  setTimeout(() => input.focus(), 100);
+}
+
+function startLogin() {
+  document.getElementById("login-screen").style.display = "flex";
+  if (currentUser) {
+    renderPinScreen(currentUser, "Digite sua senha", (pin) => doLogin(currentUser, pin));
+  } else {
+    renderUsernameScreen();
+  }
+}
+
 /* ---------- estado ---------- */
 const POSITIONS = ["-1","0","1","2","3"];
 let posIndex = 1;
 
-let notas = [
-  { id: 101, titulo: "Pauta do TCC — marca desafiante x estabelecida", importancia: "alta", createdAt: Date.now() - 1000 * 60 * 60 * 5 },
-  { id: 102, titulo: "Ideia pra conteúdo DOT: bastidor do A/B test", importancia: "media", createdAt: Date.now() - 1000 * 60 * 60 * 30 },
-  { id: 103, titulo: "Lembrar de renovar assinatura do Canva", importancia: "baixa", createdAt: Date.now() - 1000 * 60 * 60 * 50 },
-];
-let tarefas = [
-  { id: 201, titulo: "Entregar briefing pro DOT Lab", importancia: "alta", data: "hoje", horario: "14:00", createdAt: Date.now() - 1000 * 60 * 60 * 2 },
-  { id: 202, titulo: "Reunião com creators", importancia: "alta", data: "hoje", horario: "16:30", createdAt: Date.now() - 1000 * 60 * 60 * 3 },
-  { id: 203, titulo: "Resumo pra prova de Branding", importancia: "media", data: "próx. dias", horario: "", createdAt: Date.now() - 1000 * 60 * 60 * 20 },
-  { id: 204, titulo: "Academia", importancia: "baixa", data: "hoje", horario: "19:00", createdAt: Date.now() - 1000 * 60 * 60 * 1 },
-  { id: 205, titulo: "Prova de Branding", importancia: "alta", data: _plusDays(3), horario: "10:00", createdAt: Date.now() },
-  { id: 206, titulo: "Reunião de planejamento DOT", importancia: "media", data: _plusDays(7), horario: "11:00", createdAt: Date.now() },
-];
-function _plusDays(n) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+let notas = [];
+let tarefas = [];
 let idSeq = 300;
 
 let sortNotas = "recentes";
@@ -596,6 +755,7 @@ function saveDraft() {
     tarefas.unshift(item);
   }
   draft = null;
+  syncToFirestore();
   renderCapture();
   renderGrids();
 }
@@ -747,6 +907,7 @@ function renderGrid(containerId, list, kind) {
       e.stopPropagation();
       item.done = !item.done;
       item.doneAt = item.done ? Date.now() : null;
+      syncToFirestore();
       renderGrids();
       renderHome();
       renderCalendar();
@@ -1101,6 +1262,7 @@ function renderHomeList(items) {
         e.stopPropagation();
         t.done = !t.done;
         t.doneAt = t.done ? Date.now() : null;
+        syncToFirestore();
         renderHomeList(items);
         renderCalendar();
         renderGrids();
@@ -1182,8 +1344,7 @@ function openPopup(item, kind) {
 }
 
 /* ---------- boot ---------- */
-renderCapture();
-renderGrids();
+startLogin();
 </script>
 </body>
 </html>
